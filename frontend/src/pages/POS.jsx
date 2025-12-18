@@ -40,7 +40,7 @@ const POS = () => {
       const match = tab.name.match(/^Tab (\d+)$/);
       return match ? parseInt(match[1]) : 0;
     }).filter(n => n > 0);
-    
+
     // Find the smallest available number starting from 1
     let nextNum = 1;
     while (usedNumbers.includes(nextNum)) {
@@ -61,6 +61,7 @@ const POS = () => {
     { method: 'cash', amount: '' },
   ]);
   const [barcodeInput, setBarcodeInput] = useState('');
+  const [showUnpaidConfirm, setShowUnpaidConfirm] = useState(false);
 
   // Hold orders state - Load from localStorage
   const [holdOrders, setHoldOrders] = useState(() => {
@@ -469,6 +470,23 @@ const POS = () => {
       return;
     }
 
+    // Show confirmation popup for unpaid invoices (only for registered customers)
+    if (activeTab.customer && paid < total) {
+      setShowUnpaidConfirm(true);
+      return;
+    }
+
+    // Proceed with checkout for fully paid invoices
+    proceedWithCheckout();
+  };
+
+  // Actual checkout logic
+  const proceedWithCheckout = () => {
+    setShowUnpaidConfirm(false);
+
+    const total = calculateTotal();
+    const paid = parseFloat(activeTab.paidAmount) || 0;
+
     const invoiceData = {
       customerId: activeTab.customer?._id || null,
       items: activeTab.cart.map(({ item, quantity, price, total }) => ({
@@ -567,8 +585,8 @@ const POS = () => {
                       e.stopPropagation();
                       closeTab(tab.id);
                     }}
-                    className={`ml-1 rounded-full p-0.5 transition-colors ${activeTabId === tab.id 
-                      ? 'hover:bg-indigo-500 text-white/70 hover:text-white' 
+                    className={`ml-1 rounded-full p-0.5 transition-colors ${activeTabId === tab.id
+                      ? 'hover:bg-indigo-500 text-white/70 hover:text-white'
                       : 'hover:bg-gray-300 text-gray-500 hover:text-gray-700'
                       }`}
                   >
@@ -1159,6 +1177,65 @@ const POS = () => {
                   className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
                 >
                   Apply
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Unpaid Invoice Confirmation Modal */}
+        {showUnpaidConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+              <div className="flex items-center mb-4">
+                <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mr-4">
+                  <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold text-gray-900">Unpaid Invoice Confirmation</h3>
+              </div>
+
+              <div className="mb-4">
+                <p className="text-gray-700 mb-3">
+                  This invoice has an outstanding balance. Please confirm before proceeding:
+                </p>
+                <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Customer:</span>
+                    <span className="font-medium text-gray-900">{activeTab.customer?.name}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Total Amount:</span>
+                    <span className="font-bold text-gray-900">₹{total.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Paid Amount:</span>
+                    <span className="text-gray-900">₹{paid.toFixed(2)}</span>
+                  </div>
+                  <div className="border-t pt-2 flex justify-between">
+                    <span className="font-medium text-red-600">Balance Due:</span>
+                    <span className="font-bold text-red-600 text-lg">₹{(total - paid).toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-sm text-gray-600 mb-6">
+                The customer will be responsible for paying the outstanding balance of ₹{(total - paid).toFixed(2)}.
+              </p>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowUnpaidConfirm(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={proceedWithCheckout}
+                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium"
+                >
+                  Confirm & Create Invoice
                 </button>
               </div>
             </div>
